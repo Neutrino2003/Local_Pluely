@@ -58,15 +58,6 @@
       "preload": [
         "sqlite:pluely.db"
       ]
-    },
-    "updater": {
-      "endpoints": [
-        "https://pluely.com/api/update"
-      ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkzRTg4OTNGQUU0QTQ5N0MKUldSOFNVcXVQNG5va3cyVDExY0VKYndLb0EvQWtNenRpSWhybzNqVXJsOE9aSFNQWXpUbWxzQkcK",
-      "windows": {
-        "installMode": "passive"
-      }
     }
   }
 }
