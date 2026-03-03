@@ -35,6 +35,12 @@ interface ProviderState {
     customAiProviders: TYPE_PROVIDER[];
     selectedAIProvider: { provider: string; variables: Record<string, string> };
     aiProviderVariables: Record<string, Record<string, string>>;
+    /** Fallback AI provider used when the primary times out or errors */
+    fallbackAIProvider: { provider: string; variables: Record<string, string> };
+    /** Map of provider ID -> configured variables for fallback */
+    fallbackAIProviderVariables: Record<string, Record<string, string>>;
+    /** How long (ms) to wait for the primary before switching to fallback */
+    fallbackTimeoutMs: number;
 
     // STT
     customSttProviders: TYPE_PROVIDER[];
@@ -48,6 +54,8 @@ interface ProviderState {
     // Actions
     setCustomAiProviders: (providers: TYPE_PROVIDER[]) => void;
     setSelectedAIProvider: (sel: { provider: string; variables: Record<string, string> }) => void;
+    setFallbackAIProvider: (sel: { provider: string; variables: Record<string, string> }) => void;
+    setFallbackTimeoutMs: (ms: number) => void;
     setCustomSttProviders: (providers: TYPE_PROVIDER[]) => void;
     setSelectedSttProvider: (sel: { provider: string; variables: Record<string, string> }) => void;
     setCustomTtsProviders: (providers: TYPE_PROVIDER[]) => void;
@@ -89,6 +97,9 @@ export const useProviderStore = create<ProviderState>()(
             customAiProviders: [],
             selectedAIProvider: { provider: "", variables: {} },
             aiProviderVariables: {},
+            fallbackAIProvider: { provider: "", variables: {} },
+            fallbackAIProviderVariables: {},
+            fallbackTimeoutMs: 15000,
             customSttProviders: [],
             selectedSttProvider: { provider: "", variables: {} },
             sttProviderVariables: {},
@@ -111,6 +122,22 @@ export const useProviderStore = create<ProviderState>()(
                     aiProviderVariables: map,
                 };
             }),
+            setFallbackAIProvider: (sel) => set((state) => {
+                // Persist current fallback provider's variables into the map before switching
+                const map = { ...state.fallbackAIProviderVariables };
+                if (state.fallbackAIProvider.provider) {
+                    map[state.fallbackAIProvider.provider] = { ...state.fallbackAIProvider.variables };
+                }
+                // Restore saved variables when switching to a different fallback provider
+                const isSwitch = sel.provider !== state.fallbackAIProvider.provider;
+                const vars = isSwitch ? (map[sel.provider] ?? sel.variables) : sel.variables;
+                if (sel.provider) map[sel.provider] = vars;
+                return {
+                    fallbackAIProvider: { provider: sel.provider, variables: vars },
+                    fallbackAIProviderVariables: map,
+                };
+            }),
+            setFallbackTimeoutMs: (ms) => set({ fallbackTimeoutMs: ms }),
             setCustomSttProviders: (providers) => set({ customSttProviders: providers }),
             setSelectedSttProvider: (sel) => set((state) => {
                 // Persist current provider's variables into the map before switching
@@ -134,12 +161,15 @@ export const useProviderStore = create<ProviderState>()(
             name: "pluely-providers",
             partialize: (s) => ({
                 selectedAIProvider: s.selectedAIProvider,
+                fallbackAIProvider: s.fallbackAIProvider,
+                fallbackTimeoutMs: s.fallbackTimeoutMs,
                 selectedSttProvider: s.selectedSttProvider,
                 selectedTtsProvider: s.selectedTtsProvider,
                 customAiProviders: s.customAiProviders,
                 customSttProviders: s.customSttProviders,
                 customTtsProviders: s.customTtsProviders,
                 aiProviderVariables: s.aiProviderVariables,
+                fallbackAIProviderVariables: s.fallbackAIProviderVariables,
                 sttProviderVariables: s.sttProviderVariables,
             }),
             merge: (persistedState, currentState) => {
@@ -159,6 +189,12 @@ export const useProviderStore = create<ProviderState>()(
                     selectedAIProvider: normalizeProviderSelection(
                         persisted.selectedAIProvider
                     ),
+                    fallbackAIProvider: normalizeProviderSelection(
+                        persisted.fallbackAIProvider
+                    ),
+                    fallbackTimeoutMs: typeof persisted.fallbackTimeoutMs === "number"
+                        ? persisted.fallbackTimeoutMs
+                        : currentState.fallbackTimeoutMs,
                     selectedSttProvider: normalizeProviderSelection(
                         persisted.selectedSttProvider
                     ),
@@ -167,14 +203,20 @@ export const useProviderStore = create<ProviderState>()(
                     ),
                     aiProviderVariables:
                         persisted.aiProviderVariables &&
-                        typeof persisted.aiProviderVariables === "object" &&
-                        !Array.isArray(persisted.aiProviderVariables)
+                            typeof persisted.aiProviderVariables === "object" &&
+                            !Array.isArray(persisted.aiProviderVariables)
                             ? persisted.aiProviderVariables
                             : currentState.aiProviderVariables,
+                    fallbackAIProviderVariables:
+                        persisted.fallbackAIProviderVariables &&
+                            typeof persisted.fallbackAIProviderVariables === "object" &&
+                            !Array.isArray(persisted.fallbackAIProviderVariables)
+                            ? persisted.fallbackAIProviderVariables
+                            : currentState.fallbackAIProviderVariables,
                     sttProviderVariables:
                         persisted.sttProviderVariables &&
-                        typeof persisted.sttProviderVariables === "object" &&
-                        !Array.isArray(persisted.sttProviderVariables)
+                            typeof persisted.sttProviderVariables === "object" &&
+                            !Array.isArray(persisted.sttProviderVariables)
                             ? persisted.sttProviderVariables
                             : currentState.sttProviderVariables,
                 };

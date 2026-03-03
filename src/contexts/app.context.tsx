@@ -73,6 +73,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const {
     customAiProviders, setCustomAiProviders,
     selectedAIProvider, setSelectedAIProvider,
+    fallbackAIProvider, setFallbackAIProvider,
+    fallbackTimeoutMs, setFallbackTimeoutMs,
     customSttProviders, setCustomSttProviders,
     selectedSttProvider, setSelectedSttProvider,
     customTtsProviders, setCustomTtsProviders,
@@ -523,6 +525,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSelectedAIProvider({ provider, variables });
   };
 
+  const onSetFallbackAIProvider = (sel: {
+    provider: string;
+    variables: Record<string, string>;
+  }) => {
+    setFallbackAIProvider(sel);
+  };
+
   // Setter for selected STT with validation
   const onSetSelectedSttProvider = ({
     provider,
@@ -648,6 +657,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     customAiProviders,
     selectedAIProvider,
     onSetSelectedAIProvider,
+    fallbackAIProvider,
+    onSetFallbackAIProvider,
+    fallbackTimeoutMs,
+    setFallbackTimeoutMs,
     allSttProviders,
     customSttProviders,
     selectedSttProvider,

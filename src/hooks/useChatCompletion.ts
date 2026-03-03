@@ -62,6 +62,8 @@ export const useChatCompletion = (
     allSttProviders,
     selectedAudioDevices,
     hasActiveLicense,
+    fallbackAIProvider,
+    fallbackTimeoutMs,
   } = useApp();
 
   const [state, setState] = useState<ChatCompletionState>({
@@ -250,6 +252,12 @@ export const useChatCompletion = (
             userMessage: input,
             imagesBase64,
             signal,
+            fallbackProvider: (() => {
+              if (!fallbackAIProvider?.provider) return undefined;
+              return allAiProviders.find((p) => p.id === fallbackAIProvider.provider);
+            })(),
+            fallbackSelectedProvider: fallbackAIProvider?.provider ? fallbackAIProvider : undefined,
+            timeoutMs: fallbackAIProvider?.provider ? fallbackTimeoutMs : undefined,
           })) {
             // Only update if this is still the current request
             if (currentRequestIdRef.current !== requestId) {

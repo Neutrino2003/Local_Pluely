@@ -59,6 +59,8 @@ export const useCompletion = () => {
     systemPrompt,
     screenshotConfiguration,
     setScreenshotConfiguration,
+    fallbackAIProvider,
+    fallbackTimeoutMs,
   } = useApp();
   const globalShortcuts = useGlobalShortcuts();
 
@@ -281,6 +283,12 @@ export const useCompletion = () => {
             userMessage: input,
             imagesBase64,
             signal,
+            fallbackProvider: (() => {
+              if (!fallbackAIProvider?.provider) return undefined;
+              return allAiProviders.find((p) => p.id === fallbackAIProvider.provider);
+            })(),
+            fallbackSelectedProvider: fallbackAIProvider?.provider ? fallbackAIProvider : undefined,
+            timeoutMs: fallbackAIProvider?.provider ? fallbackTimeoutMs : undefined,
           })) {
             // Only update if this is still the current request
             if (currentRequestIdRef.current !== requestId) {
@@ -804,6 +812,12 @@ export const useCompletion = () => {
               userMessage: prompt,
               imagesBase64: [base64],
               signal,
+              fallbackProvider: (() => {
+                if (!fallbackAIProvider?.provider) return undefined;
+                return allAiProviders.find((p) => p.id === fallbackAIProvider.provider);
+              })(),
+              fallbackSelectedProvider: fallbackAIProvider?.provider ? fallbackAIProvider : undefined,
+              timeoutMs: fallbackAIProvider?.provider ? fallbackTimeoutMs : undefined,
             })) {
               // Only update if this is still the current request
               if (currentRequestIdRef.current !== requestId || signal.aborted) {

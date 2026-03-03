@@ -17,6 +17,16 @@ export type IContextType = {
     provider: string;
     variables: Record<string, string>;
   }) => void;
+  fallbackAIProvider: {
+    provider: string;
+    variables: Record<string, string>;
+  };
+  onSetFallbackAIProvider: (sel: {
+    provider: string;
+    variables: Record<string, string>;
+  }) => void;
+  fallbackTimeoutMs: number;
+  setFallbackTimeoutMs: (ms: number) => void;
   allSttProviders: TYPE_PROVIDER[];
   customSttProviders: TYPE_PROVIDER[];
   selectedSttProvider: {

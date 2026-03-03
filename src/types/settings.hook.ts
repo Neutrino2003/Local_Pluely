@@ -22,10 +22,15 @@ export interface UseSettingsReturn {
     provider: string;
     variables: Record<string, string>;
   }) => void;
+  fallbackAIProvider: { provider: string; variables: Record<string, string> };
+  onSetFallbackAIProvider: (sel: { provider: string; variables: Record<string, string> }) => void;
+  fallbackTimeoutMs: number;
+  setFallbackTimeoutMs: (ms: number) => void;
   handleDeleteAllChatsConfirm: () => void;
   showDeleteConfirmDialog: boolean;
   setShowDeleteConfirmDialog: React.Dispatch<React.SetStateAction<boolean>>;
   variables: { key: string; value: string }[];
+  fallbackVariables: { key: string; value: string }[];
   sttVariables: { key: string; value: string }[];
   hasActiveLicense: boolean;
 }
