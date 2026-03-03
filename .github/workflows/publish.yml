@@ -9,16 +9,7 @@ jobs:
   build-mobile:
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: "ubuntu-22.04"
-            target: "android"
-          - platform: "macos-latest"
-            target: "ios"
-
-    runs-on: ${{ matrix.platform }}
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -28,8 +19,7 @@ jobs:
           flutter-version: '3.27.6'
           channel: 'stable'
 
-      - name: Setup Java (for Android)
-        if: matrix.target == 'android'
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -40,40 +30,24 @@ jobs:
         run: flutter pub get
 
       - name: Build Android APK
-        if: matrix.target == 'android'
         working-directory: mobile_remote
         run: flutter build apk --release
 
       - name: Build Android App Bundle
-        if: matrix.target == 'android'
         working-directory: mobile_remote
         run: flutter build appbundle --release
 
-      - name: Build iOS App
-        if: matrix.target == 'ios'
-        working-directory: mobile_remote
-        run: flutter build ios --release --no-codesign
-
       - name: Upload Android APK
-        if: matrix.target == 'android'
         uses: actions/upload-artifact@v4
         with:
           name: mobile-remote-android-apk
           path: mobile_remote/build/app/outputs/flutter-apk/app-release.apk
 
       - name: Upload Android App Bundle
-        if: matrix.target == 'android'
         uses: actions/upload-artifact@v4
         with:
           name: mobile-remote-android-bundle
           path: mobile_remote/build/app/outputs/bundle/release/app-release.aab
-
-      - name: Upload iOS App
-        if: matrix.target == 'ios'
-        uses: actions/upload-artifact@v4
-        with:
-          name: mobile-remote-ios
-          path: mobile_remote/build/ios/iphoneos/Runner.app
 
   publish-tauri:
     permissions:
