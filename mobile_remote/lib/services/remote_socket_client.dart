@@ -89,6 +89,7 @@ class RemoteSocketClient {
     bool silent = false,
     String? conversationId,
     String? text,
+    List<String>? imagesBase64,
   }) {
     final channel = _channel;
     if (channel == null) {
@@ -104,6 +105,7 @@ class RemoteSocketClient {
       'requestId': DateTime.now().millisecondsSinceEpoch.toString(),
       if (conversationId case final String id) 'conversationId': id,
       if (text case final String value) 'text': value,
+      if (imagesBase64 != null) 'imageBase64': imagesBase64,
     };
 
     channel.sink.add(jsonEncode(payload));

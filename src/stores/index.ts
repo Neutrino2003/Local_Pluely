@@ -329,6 +329,57 @@ export const useUiStore = create<UiState>()(
         }),
         {
             name: "pluely-ui",
+            merge: (persistedState, currentState) => {
+                // Safely cast — persisted may be null/undefined on first load
+                const persisted = (persistedState as Partial<UiState> | null) ?? {};
+
+                // Pull stored customizable sub-object; default to empty object to avoid
+                // accessing properties on undefined.
+                const pc = (persisted.customizable ?? {}) as Partial<CustomizableState>;
+                const dc = currentState.customizable;
+
+                // We use nullish-coalescing (??) rather than || so that explicit
+                // `false` / `0` values are preserved rather than falling back to defaults.
+                const mergedCustomizable: CustomizableState = {
+                    appIcon: {
+                        isVisible: pc.appIcon?.isVisible ?? dc.appIcon.isVisible,
+                    },
+                    alwaysOnTop: {
+                        isEnabled: pc.alwaysOnTop?.isEnabled ?? dc.alwaysOnTop.isEnabled,
+                    },
+                    autostart: {
+                        isEnabled: pc.autostart?.isEnabled ?? dc.autostart.isEnabled,
+                    },
+                    cursor: {
+                        type: pc.cursor?.type ?? dc.cursor.type,
+                    },
+                };
+
+                // Safely reconstruct selectedAudioDevices so missing fields never
+                // produce `undefined.id` crashes downstream.
+                const pA = persisted.selectedAudioDevices;
+                const dA = currentState.selectedAudioDevices;
+                const mergedAudioDevices = {
+                    input: {
+                        id: pA?.input?.id ?? dA.input.id,
+                        name: pA?.input?.name ?? dA.input.name,
+                    },
+                    output: {
+                        id: pA?.output?.id ?? dA.output.id,
+                        name: pA?.output?.name ?? dA.output.name,
+                    },
+                };
+
+                return {
+                    ...currentState,
+                    customizable: mergedCustomizable,
+                    selectedAudioDevices: mergedAudioDevices,
+                    includeMicInSystemAudio:
+                        typeof persisted.includeMicInSystemAudio === "boolean"
+                            ? persisted.includeMicInSystemAudio
+                            : currentState.includeMicInSystemAudio,
+                };
+            },
         }
     )
 );

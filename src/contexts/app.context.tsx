@@ -357,6 +357,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const applyCustomizableSettings = async () => {
       try {
+        // Guard: sub-properties may be undefined if the store hasn't fully hydrated yet
+        if (!customizable?.appIcon || !customizable?.alwaysOnTop) return;
+
         await Promise.all([
           invoke("set_app_icon_visibility", {
             visible: customizable.appIcon.isVisible,

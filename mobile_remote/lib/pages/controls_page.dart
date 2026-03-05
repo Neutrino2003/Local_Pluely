@@ -175,6 +175,11 @@ class _ControlsPageState extends State<ControlsPage> {
                       onTap: rs.requestScreenshot,
                     ),
                     _ActionButton(
+                      icon: Icons.image_search,
+                      label: 'Fetch Screen',
+                      onTap: rs.getScreenshot,
+                    ),
+                    _ActionButton(
                       icon: Icons.edit_note,
                       label: 'Focus Input',
                       onTap: rs.focusInput,

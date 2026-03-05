@@ -49,6 +49,7 @@ jobs:
           path: mobile_remote/build/app/outputs/bundle/release/app-release.aab
 
   publish-tauri:
+    needs: build-mobile
     permissions:
       contents: write
     strategy:
@@ -99,6 +100,7 @@ jobs:
         run: npm ci
 
       - name: Build & publish
+        id: tauri_build
         uses: tauri-apps/tauri-action@v0.5.16
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -115,3 +117,34 @@ jobs:
           includeUpdaterJson: false
           updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
+
+      - name: Download Mobile APK
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-remote-android-apk
+          path: mobile-apk
+
+      - name: Download Mobile AAB
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-remote-android-bundle
+          path: mobile-aab
+
+      - name: Rename Mobile Apps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          mv mobile-apk/app-release.apk mobile-apk/pluely-mobile-v${{ steps.tauri_build.outputs.appVersion }}.apk
+          mv mobile-aab/app-release.aab mobile-aab/pluely-mobile-v${{ steps.tauri_build.outputs.appVersion }}.aab
+
+      - name: Upload Mobile Apps to Release
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v${{ steps.tauri_build.outputs.appVersion }}
+          files: |
+            mobile-apk/pluely-mobile-v${{ steps.tauri_build.outputs.appVersion }}.apk
+            mobile-aab/pluely-mobile-v${{ steps.tauri_build.outputs.appVersion }}.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

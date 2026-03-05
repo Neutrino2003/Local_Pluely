@@ -120,10 +120,9 @@ export const PluelyPrompts = () => {
         setLastUpdated(response.last_updated);
       }
     } catch (err) {
-      console.error("Failed to fetch Pluely prompts:", err);
-      setError(
-        typeof err === "string" ? err : "Failed to fetch Pluely prompts"
-      );
+      // In local mode there is no backend — silently hide rather than show a raw error
+      console.warn("Pluely prompts unavailable (local mode):", err);
+      // Leave prompts empty so the component returns null gracefully
     } finally {
       setIsLoading(false);
     }
@@ -258,22 +257,19 @@ export const PluelyPrompts = () => {
       </div>
 
       <div
-        className={`grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 pb-4 ${
-          !hasActiveLicense ? "opacity-60" : ""
-        }`}
+        className={`grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 pb-4 ${!hasActiveLicense ? "opacity-60" : ""
+          }`}
       >
         {prompts.map((prompt, index) => {
           const isSelected = isPromptSelected(prompt);
           return (
             <Card
               key={`${prompt.title}-${index}`}
-              className={`relative border lg:border-2 shadow-none p-4 pb-10 gap-0 group transition-all hover:shadow-sm ${
-                hasActiveLicense ? "cursor-pointer" : "cursor-not-allowed"
-              } ${
-                isSelected
+              className={`relative border lg:border-2 shadow-none p-4 pb-10 gap-0 group transition-all hover:shadow-sm ${hasActiveLicense ? "cursor-pointer" : "cursor-not-allowed"
+                } ${isSelected
                   ? "!bg-primary/5 dark:!bg-primary/10 border-primary"
                   : "!bg-black/5 dark:!bg-white/5 border-transparent"
-              }`}
+                }`}
               onClick={() => handleCardClick(prompt)}
             >
               {isSelected && (

@@ -103,6 +103,15 @@ export function useSystemAudio() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isSavingRef = useRef<boolean>(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
+
+  // Track mount/unmount so async Whisper callbacks don't setState on dead components
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Load context settings and VAD config from localStorage on mount
   useEffect(() => {
@@ -232,7 +241,7 @@ export function useSystemAudio() {
 
             const usePluelyAPI = await shouldUsePluelyAPI();
             if (!selectedSttProvider.provider && !usePluelyAPI) {
-              setError("No speech provider selected.");
+              if (isMountedRef.current) setError("No speech provider selected.");
               return;
             }
 
@@ -241,11 +250,11 @@ export function useSystemAudio() {
             );
 
             if (!providerConfig && !usePluelyAPI) {
-              setError("Speech provider config not found.");
+              if (isMountedRef.current) setError("Speech provider config not found.");
               return;
             }
 
-            setIsProcessing(true);
+            if (isMountedRef.current) setIsProcessing(true);
 
             // Add timeout wrapper for STT request (30 seconds)
             const sttPromise = fetchSTT({
@@ -267,6 +276,9 @@ export function useSystemAudio() {
                 timeoutPromise,
               ]);
 
+              // Guard: component may have unmounted while Whisper was running
+              if (!isMountedRef.current) return;
+
               if (transcription.trim()) {
                 setLastTranscription(transcription);
                 setError("");
@@ -280,13 +292,15 @@ export function useSystemAudio() {
               }
             } catch (sttError: any) {
               console.error("STT Error:", sttError);
-              setError(sttError.message || "Failed to transcribe audio");
-              setIsPopoverOpen(true);
+              if (isMountedRef.current) {
+                setError(sttError.message || "Failed to transcribe audio");
+                setIsPopoverOpen(true);
+              }
             }
           } catch (err) {
-            setError("Failed to process speech");
+            if (isMountedRef.current) setError("Failed to process speech");
           } finally {
-            setIsProcessing(false);
+            if (isMountedRef.current) setIsProcessing(false);
           }
         });
       } catch (err) {

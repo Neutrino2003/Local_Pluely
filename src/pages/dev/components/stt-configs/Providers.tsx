@@ -9,7 +9,7 @@ import {
   RefreshCwIcon,
   TrashIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface WhisperModelStatus {
@@ -39,6 +39,14 @@ export const Providers = ({
   // Pending local edits for non-API-key variables: key → pending string or null
   const [pendingVars, setPendingVars] = useState<Record<string, string | null>>({});
   const prevProviderRef = useRef<string>("");
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const isLocalWhisperSelected =
     selectedSttProvider?.provider === LOCAL_WHISPER_PROVIDER_ID;
@@ -86,13 +94,16 @@ export const Providers = ({
     });
   };
 
-  const loadWhisperModels = async () => {
+  const loadWhisperModels = useCallback(async () => {
     if (!isLocalWhisperSelected) return;
 
-    setWhisperModelsLoading(true);
-    setWhisperModelError(null);
+    if (isMountedRef.current) {
+      setWhisperModelsLoading(true);
+      setWhisperModelError(null);
+    }
     try {
       const models = await invoke<WhisperModelStatus[]>("list_whisper_models");
+      if (!isMountedRef.current) return;
       setWhisperModels(models);
 
       const modelVariable = findKeyAndValue("model");
@@ -103,28 +114,32 @@ export const Providers = ({
         setProviderVariable(modelVariable.key, models[0].id);
       }
     } catch (error) {
+      if (!isMountedRef.current) return;
       const message =
         error instanceof Error ? error.message : "Failed to load models";
       setWhisperModelError(message);
     } finally {
-      setWhisperModelsLoading(false);
+      if (isMountedRef.current) setWhisperModelsLoading(false);
     }
-  };
+  }, [isLocalWhisperSelected, selectedSttProvider?.variables, sttVariables]);
 
   const handleDownloadModel = async (modelId: string) => {
     if (!modelId) return;
 
-    setDownloadingModelId(modelId);
-    setWhisperModelError(null);
+    if (isMountedRef.current) {
+      setDownloadingModelId(modelId);
+      setWhisperModelError(null);
+    }
     try {
       await invoke("download_whisper_model", { modelId });
       await loadWhisperModels();
     } catch (error) {
+      if (!isMountedRef.current) return;
       const message =
         error instanceof Error ? error.message : "Failed to download model";
       setWhisperModelError(message);
     } finally {
-      setDownloadingModelId(null);
+      if (isMountedRef.current) setDownloadingModelId(null);
     }
   };
 
@@ -272,8 +287,8 @@ export const Providers = ({
             description={`Enter your ${allSttProviders?.find(
               (p) => p?.id === selectedSttProvider?.provider
             )?.isCustom
-                ? "Custom Provider"
-                : selectedSttProvider?.provider
+              ? "Custom Provider"
+              : selectedSttProvider?.provider
               } API key to authenticate and access STT models. Your key is stored locally and never shared.`}
           />
 

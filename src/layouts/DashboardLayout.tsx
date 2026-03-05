@@ -60,7 +60,7 @@ export const DashboardLayout = () => {
     setupListener();
 
     return () => {
-      if (unlisten) unlisten.then((fn: any) => typeof fn === "function" && fn());
+      if (typeof unlisten === "function") unlisten();
     };
   }, [navigate]);
 

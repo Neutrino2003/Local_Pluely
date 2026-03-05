@@ -86,6 +86,8 @@ export const useCompletion = () => {
   const screenshotInitiatedByThisContext = useRef(false);
   /** Prevents setState on unmounted component during async streaming */
   const isMountedRef = useRef(true);
+  /** Stable ref to the latest submit so the ambient-transcription listener never needs to re-register */
+  const submitRef = useRef<(speechText?: string) => Promise<void>>(() => Promise.resolve());
 
   const { resizeWindow } = useWindowResize();
 
@@ -131,6 +133,7 @@ export const useCompletion = () => {
   useEffect(() => {
     screenshotConfigRef.current = screenshotConfiguration;
   }, [screenshotConfiguration]);
+
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -372,6 +375,12 @@ export const useCompletion = () => {
       state.conversationHistory,
     ]
   );
+
+  // Keep submitRef in sync with the latest submit so the ambient-transcription listener
+  // never re-registers (avoids stale-closure race conditions during navigation)
+  useEffect(() => {
+    submitRef.current = submit;
+  }, [submit]);
 
   const cancel = useCallback(() => {
     if (abortControllerRef.current) {
@@ -684,7 +693,8 @@ export const useCompletion = () => {
           (event: any) => {
             const payload = event.payload as { text?: string } | null;
             if (payload?.text) {
-              submit(payload.text);
+              // Use the ref so this listener never needs to re-register
+              submitRef.current(payload.text);
             }
           }
         );
@@ -709,7 +719,6 @@ export const useCompletion = () => {
   }, [
     loadConversation,
     startNewConversation,
-    submit,
     state.currentConversationId,
   ]);
 

@@ -351,6 +351,7 @@ class RemoteState extends ChangeNotifier {
   void focusInput() => _sendCommand('focus_input');
   void toggleWindow() => _sendCommand('toggle_window');
   void requestScreenshot() => _sendCommand('screenshot');
+  void getScreenshot() => _sendCommand('get_screenshot');
 
   // ── Chat actions ─────────────────────────────────────────────────────────────
   void fetchSessions() {
@@ -404,7 +405,7 @@ class RemoteState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void sendChatMessage(String text) {
+  void sendChatMessage(String text, {List<String>? imagesBase64}) {
     if (text.trim().isEmpty || _openConversationId == null) return;
     // Optimistic UI
     _messages = [
@@ -413,44 +414,50 @@ class RemoteState extends ChangeNotifier {
         'role': 'user',
         'content': text.trim(),
         'timestamp': DateTime.now().millisecondsSinceEpoch,
+        if (imagesBase64 != null && imagesBase64.isNotEmpty)
+          'imagesBase64': imagesBase64,
       },
     ];
     notifyListeners();
-    _client.sendCommand(
-      token: _token,
-      command: 'send_chat_message',
+    _sendCommand(
+      'send_chat_message',
       text: text.trim(),
       conversationId: _openConversationId,
       silent: true,
+      imagesBase64: imagesBase64,
     );
   }
 
   /// Send a message to a specific (or the most recent) conversation without
   /// having opened a ChatPage first. Used by the Controls tab quick-chat bar.
-  void sendQuickMessage(String text, {String? conversationId}) {
+  void sendQuickMessage(
+    String text, {
+    String? conversationId,
+    List<String>? imagesBase64,
+  }) {
     final targetId =
         conversationId ??
         _openConversationId ??
         (_sessions.isNotEmpty ? _sessions.first['id']?.toString() : null);
     if (text.trim().isEmpty || targetId == null) return;
-    _client.sendCommand(
-      token: _token,
-      command: 'send_chat_message',
+    _sendCommand(
+      'send_chat_message',
       text: text.trim(),
       conversationId: targetId,
       silent: true,
+      imagesBase64: imagesBase64,
     );
   }
 
   /// Start a new conversation from the mobile app.
-  void startNewConversation(String text) {
+  void startNewConversation(String text, {List<String>? imagesBase64}) {
     if (text.trim().isEmpty || !_connected) return;
-    _client.sendCommand(
-      token: _token,
-      command: 'send_chat_message',
+    _sendCommand(
+      'send_chat_message',
       text: text.trim(),
       conversationId: 'new',
       silent: true,
+      imagesBase64: imagesBase64,
     );
     // Refresh sessions after a short delay to pick up the new one
     Future<void>.delayed(const Duration(seconds: 3)).then((_) {
@@ -464,6 +471,7 @@ class RemoteState extends ChangeNotifier {
     bool silent = false,
     String? conversationId,
     String? text,
+    List<String>? imagesBase64,
   }) {
     if (_token.isEmpty) return;
     try {
@@ -473,6 +481,7 @@ class RemoteState extends ChangeNotifier {
         silent: silent,
         conversationId: conversationId,
         text: text,
+        imagesBase64: imagesBase64,
       );
     } catch (_) {}
   }

@@ -22,6 +22,7 @@ class _ChatPageState extends State<ChatPage> {
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _isSending = false;
+  bool _attachScreenshot = false;
 
   @override
   void dispose() {
@@ -32,11 +33,21 @@ class _ChatPageState extends State<ChatPage> {
 
   void _send() {
     final text = _inputCtrl.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && !_attachScreenshot) return;
     HapticFeedback.lightImpact();
-    context.read<RemoteState>().sendChatMessage(text);
+
+    final rs = context.read<RemoteState>();
+    rs.sendChatMessage(
+      text,
+      imagesBase64: _attachScreenshot && rs.lastScreenshotBase64 != null
+          ? [rs.lastScreenshotBase64!]
+          : null,
+    );
     _inputCtrl.clear();
-    setState(() => _isSending = true);
+    setState(() {
+      _isSending = true;
+      _attachScreenshot = false;
+    });
     // After AI starts responding the typing bubble appears; reset flag.
     Future.delayed(
       const Duration(milliseconds: 800),
@@ -182,6 +193,32 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (rs.lastScreenshotBase64 != null)
+                    IconButton.filledTonal(
+                      icon: Icon(
+                        _attachScreenshot
+                            ? Icons.insert_photo
+                            : Icons.hide_image,
+                        size: 20,
+                      ),
+                      tooltip: _attachScreenshot
+                          ? 'Screenshot Attached'
+                          : 'Attach Latest Screenshot',
+                      style: IconButton.styleFrom(
+                        backgroundColor: _attachScreenshot
+                            ? cs.secondaryContainer
+                            : cs.surfaceContainerHighest,
+                        foregroundColor: _attachScreenshot
+                            ? cs.onSecondaryContainer
+                            : cs.onSurfaceVariant,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _attachScreenshot = !_attachScreenshot;
+                        });
+                      },
+                    ),
+                  const SizedBox(width: 4),
                   IconButton.filled(
                     style: IconButton.styleFrom(
                       backgroundColor: cs.primary,

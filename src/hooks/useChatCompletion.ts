@@ -437,22 +437,23 @@ export const useChatCompletion = (
       const existingMessages = messages?.messages || [];
       const newMessages = [...existingMessages, newMessage];
 
-      // If it's the very first message
+      // Use a local variable to avoid mutating the const `messages` parameter
+      let conversationBase = messages;
       if (newMessages.length === 1 && !messages?.title) {
-        messages = {
+        conversationBase = {
           id: conversationIdForAppend,
           title: generateConversationTitle(transcription),
           messages: [],
           createdAt: timestamp,
           updatedAt: timestamp,
-        } as any;
+        };
       }
 
       const updatedConversation: ChatConversation = {
         id: conversationIdForAppend,
-        title: messages?.title || generateConversationTitle(transcription),
+        title: conversationBase?.title || generateConversationTitle(transcription),
         messages: newMessages,
-        createdAt: messages?.createdAt || timestamp,
+        createdAt: conversationBase?.createdAt || timestamp,
         updatedAt: timestamp,
       };
 
@@ -771,10 +772,33 @@ export const useChatCompletion = (
             requestId?: string;
             conversationId?: string;
             text?: string;
+            imagesBase64?: string[];
           } | null;
 
-          if (payload?.text && payload.conversationId === conversationId) {
-            submit(payload.text);
+          if (payload?.conversationId === conversationId) {
+            // Apply images if present
+            if (payload.imagesBase64 && payload.imagesBase64.length > 0) {
+              const files: File[] = payload.imagesBase64.map((b64, index) => {
+                // Convert base64 to File object using a data url and fetch
+                const byteString = atob(b64);
+                const arrayBuffer = new ArrayBuffer(byteString.length);
+                const int8Array = new Uint8Array(arrayBuffer);
+                for (let i = 0; i < byteString.length; i++) {
+                  int8Array[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([int8Array], { type: 'image/png' });
+                return new File([blob], `screenshot_remote_${Date.now()}_${index}.png`, { type: 'image/png' });
+              });
+
+              Promise.all(files.map(f => addFile(f))).then(() => {
+                if (payload.text) {
+                  // small delay to ensure state sets
+                  setTimeout(() => submit(payload.text), 100);
+                }
+              });
+            } else if (payload.text) {
+              submit(payload.text);
+            }
           }
         });
       } catch (err) {

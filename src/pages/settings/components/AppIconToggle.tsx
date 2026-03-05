@@ -12,6 +12,8 @@ export const AppIconToggle = ({ className }: AppIconToggleProps) => {
     await toggleAppIconVisibility(checked);
   };
 
+  const isVisible = customizable?.appIcon?.isVisible ?? true;
+
   return (
     <div id="app-icon" className={`space-y-2 ${className}`}>
       <Header
@@ -23,19 +25,18 @@ export const AppIconToggle = ({ className }: AppIconToggleProps) => {
         <div className="flex items-center space-x-3">
           <div>
             <Label className="text-sm font-medium">
-              {!customizable.appIcon.isVisible
+              {!isVisible
                 ? "Show Icon in Dock/Taskbar"
                 : "Hide Icon from Dock/Taskbar"}
             </Label>
             <p className="text-xs text-muted-foreground mt-1">
-              {`Toggle to make App Icon ${
-                !customizable.appIcon.isVisible ? "Visible" : "Hidden"
-              }`}
+              {`Toggle to make App Icon ${!isVisible ? "Visible" : "Hidden"
+                }`}
             </p>
           </div>
         </div>
         <Switch
-          checked={customizable.appIcon.isVisible}
+          checked={isVisible}
           onCheckedChange={handleSwitchChange}
           aria-label="Toggle app icon visibility"
         />

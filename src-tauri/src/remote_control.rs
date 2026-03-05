@@ -26,6 +26,7 @@ const SUPPORTED_REMOTE_COMMANDS: &[&str] = &[
     "get_chat_sessions",
     "get_chat_messages",
     "send_chat_message",
+    "get_screenshot",
 ];
 
 #[derive(Default)]
@@ -72,6 +73,7 @@ struct RemoteCommand {
     request_id: Option<String>,
     conversation_id: Option<String>,
     text: Option<String>,
+    image_base64: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -399,6 +401,7 @@ async fn handle_client_connection(
                         "requestId": command.request_id.clone(),
                         "conversationId": command.conversation_id.clone(),
                         "text": command.text.clone(),
+                        "imagesBase64": command.image_base64.clone(),
                     }),
                 );
                 let response = RemoteResponse {
@@ -467,6 +470,31 @@ async fn handle_client_connection(
                     message: "Overlay state synced".to_string(),
                     request_id: command.request_id.clone(),
                     image_base64: None,
+                    overlay_state: Some(collect_overlay_state(&app, &overlay_state_ref)),
+                    chat_io: None,
+                    chat_sessions: None,
+                    chat_messages: None,
+                };
+                queue_response(&writer_tx, &response);
+            }
+            "get_screenshot" => {
+                let mut image_base64 = None;
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Ok(base64_img) = crate::capture::capture_to_base64(window).await {
+                        image_base64 = Some(format!("data:image/png;base64,{}", base64_img));
+                    }
+                }
+                
+                let response = RemoteResponse {
+                    ok: image_base64.is_some(),
+                    command: "get_screenshot".to_string(),
+                    message: if image_base64.is_some() {
+                        "Screenshot captured".to_string()
+                    } else {
+                        "Failed to capture screenshot".to_string()
+                    },
+                    request_id: command.request_id.clone(),
+                    image_base64,
                     overlay_state: Some(collect_overlay_state(&app, &overlay_state_ref)),
                     chat_io: None,
                     chat_sessions: None,
