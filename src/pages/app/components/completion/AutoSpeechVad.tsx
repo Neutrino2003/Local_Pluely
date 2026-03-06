@@ -1,12 +1,13 @@
 import { fetchSTT } from "@/lib";
 import { UseCompletionReturn } from "@/types";
 import { useMicVAD } from "@ricky0123/vad-react";
-import { LoaderCircleIcon, MicIcon, MicOffIcon } from "lucide-react";
+import { LoaderIcon, MicIcon, MicOffIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components";
 import { useApp } from "@/contexts";
 import { floatArrayToWav } from "@/lib/utils";
 import { shouldUsePluelyAPI } from "@/lib/functions/pluely.api";
+import { cn } from "@/lib/utils";
 
 interface AutoSpeechVADProps {
   submit: UseCompletionReturn["submit"];
@@ -76,6 +77,7 @@ const AutoSpeechVADInternal = ({
         });
 
         if (transcription) {
+          setState((prev: any) => ({ ...prev, error: "" }));
           submit(transcription);
         }
       } catch (error) {
@@ -91,32 +93,55 @@ const AutoSpeechVADInternal = ({
     },
   });
 
+  // Determine button style
+  const getButtonClass = () => {
+    if (isTranscribing) return "audio-btn-processing";
+    if (vad.userSpeaking) return "audio-btn-active";
+    if (vad.listening) return "audio-btn-active";
+    return "";
+  };
+
   return (
-    <>
-      <Button
-        size="icon"
-        onClick={() => {
-          if (vad.listening) {
-            vad.pause();
-            setEnableVAD(false);
-          } else {
-            vad.start();
-            setEnableVAD(true);
-          }
-        }}
-        className="cursor-pointer"
-      >
-        {isTranscribing ? (
-          <LoaderCircleIcon className="h-4 w-4 animate-spin text-green-500" />
-        ) : vad.userSpeaking ? (
-          <LoaderCircleIcon className="h-4 w-4 animate-spin" />
-        ) : vad.listening ? (
-          <MicOffIcon className="h-4 w-4 animate-pulse" />
-        ) : (
-          <MicIcon className="h-4 w-4" />
-        )}
-      </Button>
-    </>
+    <Button
+      size="icon"
+      onClick={() => {
+        if (vad.listening) {
+          vad.pause();
+          setEnableVAD(false);
+        } else {
+          vad.start();
+          setEnableVAD(true);
+        }
+      }}
+      className={cn("cursor-pointer relative", getButtonClass())}
+      title={
+        isTranscribing
+          ? "Transcribing your speech..."
+          : vad.userSpeaking
+          ? "Speaking detected..."
+          : vad.listening
+          ? "Listening — click to stop"
+          : "Click to start voice input"
+      }
+    >
+      {isTranscribing ? (
+        <LoaderIcon className="h-4 w-4 animate-spin" />
+      ) : vad.listening ? (
+        <MicIcon
+          className={cn(
+            "h-4 w-4 transition-colors duration-200",
+            vad.userSpeaking ? "text-green-500" : "text-green-500"
+          )}
+        />
+      ) : (
+        <MicOffIcon className="h-4 w-4" />
+      )}
+
+      {/* Live dot indicator when listening */}
+      {vad.listening && !isTranscribing && (
+        <span className="audio-btn-dot" />
+      )}
+    </Button>
   );
 };
 

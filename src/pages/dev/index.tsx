@@ -1,4 +1,4 @@
-import { AIProviders, STTProviders, RemoteControl } from "./components";
+import { AIProviders, STTProviders, RemoteControl, SystemAudioSettings } from "./components";
 import Contribute from "@/components/Contribute";
 import { useSettings } from "@/hooks";
 import { PageLayout } from "@/layouts";
@@ -12,8 +12,8 @@ const DevSpace = () => {
       <ErrorBoundary fallbackRender={({ error }) => (
         <div className="p-4 bg-red-100 text-red-900 border border-red-500 rounded-md">
           <h2 className="font-bold text-lg">Error rendering Dev Space</h2>
-          <pre className="mt-2 text-sm whitespace-pre-wrap">{error.message}</pre>
-          <pre className="mt-2 text-xs opacity-70 whitespace-pre-wrap">{error.stack}</pre>
+          <pre className="mt-2 text-sm whitespace-pre-wrap">{(error as Error).message}</pre>
+          <pre className="mt-2 text-xs opacity-70 whitespace-pre-wrap">{(error as Error).stack}</pre>
         </div>
       )}>
         <Contribute />
@@ -22,6 +22,9 @@ const DevSpace = () => {
 
         {/* STT Providers */}
         <STTProviders {...settings} />
+
+        {/* System Audio Settings */}
+        <SystemAudioSettings />
 
         {/* Mobile Remote Control */}
         <RemoteControl />

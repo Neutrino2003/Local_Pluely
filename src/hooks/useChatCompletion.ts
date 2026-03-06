@@ -222,9 +222,19 @@ export const useChatCompletion = (
           timestamp,
         };
 
-        const updatedMessages = {
-          ...messages!,
-          messages: [...(messages?.messages || []), userMsg],
+        // Build a safe base for the updated conversation,
+        // even if messages hasn't finished loading yet.
+        const conversationBase: ChatConversation = messages ?? {
+          id: conversationId || generateConversationId("chat"),
+          title: generateConversationTitle(input),
+          messages: [],
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+
+        const updatedMessages: ChatConversation = {
+          ...conversationBase,
+          messages: [...(conversationBase.messages || []), userMsg],
         };
         setMessages(updatedMessages);
 
@@ -829,8 +839,8 @@ export const useChatCompletion = (
     window.addEventListener("remote-control-start-chat", handleRemoteStartChat);
 
     return () => {
-      if (unlisten) unlisten.then((fn: any) => typeof fn === "function" && fn());
-      if (unlistenAmbient) unlistenAmbient.then((fn: any) => typeof fn === "function" && fn());
+      if (typeof unlisten === "function") unlisten();
+      if (typeof unlistenAmbient === "function") unlistenAmbient();
       window.removeEventListener("remote-control-start-chat", handleRemoteStartChat);
     };
   }, [submit, appendTranscription, conversationId]);

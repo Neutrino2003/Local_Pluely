@@ -6,7 +6,7 @@ import {
   Markdown,
   Textarea,
 } from "@/components";
-import { getConversationById } from "@/lib";
+import { getConversationById, deleteConversation, DOWNLOAD_SUCCESS_DISPLAY_MS } from "@/lib";
 import { fetchTTS } from "@/lib";
 import { ChatConversation } from "@/types";
 import {
@@ -25,7 +25,7 @@ import { useState, useEffect, useCallback } from "react";
 import moment from "moment";
 import { useParams, useNavigate } from "react-router-dom";
 import { PageLayout } from "@/layouts";
-import { useHistory, useChatCompletion } from "@/hooks";
+import { useChatCompletion } from "@/hooks";
 import { useApp } from "@/contexts";
 import {
   DeleteConfirmationDialog,
@@ -77,16 +77,48 @@ const View = () => {
     [allTtsProviders, selectedTtsProvider, speakingMessageId]
   );
 
-  const {
-    handleDeleteConfirm,
-    confirmDelete,
-    cancelDelete,
-    deleteConfirm,
-    handleAttachToOverlay,
-    handleDownload,
-    isDownloaded,
-    isAttached,
-  } = useHistory();
+  // Lightweight local state for delete/download/attach — avoids loading all conversations via useHistory()
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const [isAttached, setIsAttached] = useState(false);
+
+  const handleDeleteConfirm = (id: string) => setDeleteConfirm(id);
+  const cancelDelete = () => setDeleteConfirm(null);
+
+  const handleAttachToOverlay = useCallback((convId: string) => {
+    localStorage.setItem(
+      "pluely-conversation-selected",
+      JSON.stringify({ id: convId, timestamp: Date.now() })
+    );
+    setIsAttached(true);
+    setTimeout(() => setIsAttached(false), DOWNLOAD_SUCCESS_DISPLAY_MS);
+  }, []);
+
+  const handleDownload = useCallback((conversation: ChatConversation | null, e: React.MouseEvent) => {
+    if (!conversation) return;
+    e.stopPropagation();
+    try {
+      const lines = [`# ${conversation.title}`, ""];
+      conversation.messages.forEach((m) => {
+        lines.push(`## ${m.role.toUpperCase()}`);
+        lines.push(m.content);
+        lines.push("");
+      });
+      const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${conversation.title.replace(/[^a-z0-9]/gi, "_").toLowerCase().substring(0, 16)}.md`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setIsDownloaded(true);
+      setTimeout(() => setIsDownloaded(false), DOWNLOAD_SUCCESS_DISPLAY_MS);
+    } catch (err) {
+      console.error("Failed to download conversation:", err);
+    }
+  }, []);
 
   const completion = useChatCompletion(
     conversationId as string,
@@ -114,7 +146,14 @@ const View = () => {
   }, [messages?.messages.length]);
 
   const handleDelete = async () => {
-    await confirmDelete();
+    if (!deleteConfirm) return;
+    try {
+      await deleteConversation(deleteConfirm);
+      window.dispatchEvent(new CustomEvent("conversationDeleted", { detail: deleteConfirm }));
+    } catch (err) {
+      console.error("Failed to delete conversation:", err);
+    }
+    setDeleteConfirm(null);
     navigate(-1);
   };
 
@@ -122,8 +161,8 @@ const View = () => {
     <PageLayout
       isMainTitle={false}
       allowBackButton={true}
-      title={messages?.title || ""}
-      description={`${messages?.messages.length} messages in this conversation`}
+      title={messages?.title || "Loading..."}
+      description={messages ? `${messages.messages?.length ?? 0} messages in this conversation` : "Loading conversation..."}
       rightSlot={
         <div className="flex flex-row items-center gap-2">
           <Button
@@ -178,7 +217,14 @@ const View = () => {
         </div>
       }
     >
-      {messages?.messages.length === 0 ? (
+      {!messages ? (
+        <Empty
+          isLoading={true}
+          icon={MessageCircleIcon}
+          title="Loading conversation..."
+          description="Please wait while we load your messages"
+        />
+      ) : messages.messages?.length === 0 ? (
         <Empty
           isLoading={false}
           icon={MessageCircleIcon}
@@ -187,7 +233,7 @@ const View = () => {
         />
       ) : (
         <div className="flex flex-col gap-4 pb-24 px-2">
-          {messages?.messages.map((message, index, array) => {
+          {messages.messages?.map((message, index, array) => {
             const isUser = message.role === "user";
             const showDate =
               index === 0 ||

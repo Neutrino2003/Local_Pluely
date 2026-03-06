@@ -245,9 +245,29 @@ export const useCompletion = () => {
 
         let fullResponse = "";
 
+        let liveSelectedAIProvider = selectedAIProvider;
+        let liveAllAiProviders = allAiProviders;
+
+        try {
+          const raw = localStorage.getItem("pluely-providers");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const pState = parsed?.state;
+            if (pState?.selectedAIProvider?.provider) {
+              liveSelectedAIProvider = pState.selectedAIProvider;
+            }
+            if (Array.isArray(pState?.customAiProviders)) {
+              const builtIns = allAiProviders.filter(p => !p.isCustom);
+              liveAllAiProviders = [...builtIns, ...pState.customAiProviders];
+            }
+          }
+        } catch (err) {
+          console.warn("Failed to parse AI provider from fallback localStorage", err);
+        }
+
         const usePluelyAPI = await shouldUsePluelyAPI();
         // Check if AI provider is configured
-        if (!selectedAIProvider.provider && !usePluelyAPI) {
+        if (!liveSelectedAIProvider.provider && !usePluelyAPI) {
           setState((prev) => ({
             ...prev,
             error: "Please select an AI provider in settings",
@@ -255,8 +275,8 @@ export const useCompletion = () => {
           return;
         }
 
-        const provider = allAiProviders.find(
-          (p) => p.id === selectedAIProvider.provider
+        const provider = liveAllAiProviders.find(
+          (p) => p.id === liveSelectedAIProvider.provider
         );
         if (!provider && !usePluelyAPI) {
           setState((prev) => ({

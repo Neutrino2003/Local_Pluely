@@ -186,6 +186,7 @@ async fn run_vad_capture(
             let mono = apply_noise_gate(&mono, config.noise_gate_threshold);
 
             let (rms, peak) = calculate_audio_metrics(&mono);
+            let _ = app.emit("audio-volume", rms);
             let is_speech = rms > config.sensitivity_rms || peak > config.peak_threshold;
 
             if is_speech {
@@ -300,6 +301,7 @@ async fn run_continuous_capture(
 
     // Pre-allocate buffer to prevent reallocations
     let mut audio_buffer = Vec::with_capacity(max_samples);
+    let mut volume_chunk = Vec::with_capacity(1024);
     let start_time = Instant::now();
     let max_duration = Duration::from_secs(config.max_recording_duration_secs);
 
@@ -334,6 +336,13 @@ async fn run_continuous_capture(
                         }
 
                         audio_buffer.push(sample);
+                        volume_chunk.push(sample);
+
+                        if volume_chunk.len() >= 1024 {
+                            let (rms, _) = calculate_audio_metrics(&volume_chunk);
+                            let _ = app.emit("audio-volume", rms);
+                            volume_chunk.clear();
+                        }
 
                         let elapsed = start_time.elapsed();
 

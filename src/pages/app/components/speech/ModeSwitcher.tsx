@@ -15,7 +15,7 @@ export const ModeSwitcher = ({
   return (
     <div
       className={cn(
-        "flex bg-muted rounded-lg w-full p-0.5 gap-0.5",
+        "flex bg-muted rounded-lg w-full max-w-[280px] p-0.5 gap-0.5",
         disabled && "opacity-50 pointer-events-none"
       )}
     >

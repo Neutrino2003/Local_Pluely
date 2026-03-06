@@ -104,6 +104,11 @@ export function useSystemAudio() {
   const isSavingRef = useRef<boolean>(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
+  const capturingRef = useRef(false);
+
+  useEffect(() => {
+    capturingRef.current = capturing;
+  }, [capturing]);
 
   // Track mount/unmount so async Whisper callbacks don't setState on dead components
   useEffect(() => {
@@ -223,12 +228,17 @@ export function useSystemAudio() {
   // Handle single speech detection event (both VAD and continuous modes)
   useEffect(() => {
     let speechUnlisten: (() => void) | undefined;
+    let speechStartUnlisten: (() => void) | undefined;
 
     const setupEventListener = async () => {
       try {
+        speechStartUnlisten = await listen("speech-start", () => {
+          setLastTranscription("");
+        });
+
         speechUnlisten = await listen("speech-detected", async (event) => {
           try {
-            if (!capturing) return;
+            if (!capturingRef.current) return;
 
             const base64Audio = event.payload as string;
             // Convert to blob
@@ -240,13 +250,30 @@ export function useSystemAudio() {
             const audioBlob = new Blob([bytes], { type: "audio/wav" });
 
             const usePluelyAPI = await shouldUsePluelyAPI();
-            if (!selectedSttProvider.provider && !usePluelyAPI) {
+            let liveSttProvider = selectedSttProvider;
+            let liveAllSttProviders = allSttProviders;
+            try {
+              const raw = localStorage.getItem("pluely-providers");
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                const pState = parsed?.state;
+                if (pState?.selectedSttProvider?.provider) {
+                  liveSttProvider = pState.selectedSttProvider;
+                }
+                if (Array.isArray(pState?.customSttProviders)) {
+                  const builtIns = allSttProviders.filter(p => !p.isCustom);
+                  liveAllSttProviders = [...builtIns, ...pState.customSttProviders];
+                }
+              }
+            } catch (err) { }
+
+            if (!liveSttProvider.provider && !usePluelyAPI) {
               if (isMountedRef.current) setError("No speech provider selected.");
               return;
             }
 
-            const providerConfig = allSttProviders.find(
-              (p) => p.id === selectedSttProvider.provider
+            const providerConfig = liveAllSttProviders.find(
+              (p) => p.id === liveSttProvider.provider
             );
 
             if (!providerConfig && !usePluelyAPI) {
@@ -259,7 +286,7 @@ export function useSystemAudio() {
             // Add timeout wrapper for STT request (30 seconds)
             const sttPromise = fetchSTT({
               provider: providerConfig,
-              selectedProvider: selectedSttProvider,
+              selectedProvider: liveSttProvider,
               audio: audioBlob,
             });
 
@@ -288,7 +315,9 @@ export function useSystemAudio() {
                   console.error("Failed to emit ambient transcription", err)
                 );
               } else {
-                setError("Received empty transcription");
+                // Clear any previous error on a successful but empty transcription (e.g. silence/background noise)
+                setError("");
+                console.log("Empty transcription received, ignoring.");
               }
             } catch (sttError: any) {
               console.error("STT Error:", sttError);
@@ -312,9 +341,9 @@ export function useSystemAudio() {
 
     return () => {
       if (speechUnlisten) speechUnlisten();
+      if (speechStartUnlisten) speechStartUnlisten();
     };
   }, [
-    capturing,
     selectedSttProvider,
     allSttProviders,
     conversation.messages.length,
@@ -466,10 +495,9 @@ export function useSystemAudio() {
       setIsContinuousMode(isContinuous);
       setRecordingProgress(0);
 
-      // If continuous mode
+      // If continuous mode, track it properly but continue to start the backend capture stream
       if (isContinuous) {
-        setIsRecordingInContinuousMode(false);
-        return;
+        setIsRecordingInContinuousMode(true);
       }
 
       // VAD mode: Start recording immediately

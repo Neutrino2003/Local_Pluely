@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { listen } from "@tauri-apps/api/event";
 
 // Configuration constants for the audio analyzer
 const AUDIO_CONFIG = {
@@ -28,6 +29,7 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const gainNodesRef = useRef<GainNode[]>([]);
+  const unlistenVolumeRef = useRef<(() => void) | null>(null);
 
   // Cleanup function to stop visualization and close audio context
   const cleanup = () => {
@@ -44,6 +46,10 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
     });
     oscillatorsRef.current = [];
     gainNodesRef.current = [];
+    if (unlistenVolumeRef.current) {
+      unlistenVolumeRef.current();
+      unlistenVolumeRef.current = null;
+    }
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
@@ -92,12 +98,12 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Create a fake audio stream using oscillators that mimic speech patterns
-  const createFakeStream = (
+  // Create a reactive audio stream using oscillators synced exactly to backend audio-volume
+  const createReactiveStream = async (
     audioContext: AudioContext,
     analyser: AnalyserNode
   ) => {
-    // Create multiple oscillators with different frequencies to simulate speech
+    // Create multiple oscillators to mimic a rich speech spectrum across the FFT
     const frequencies = [120, 240, 350, 500, 800, 1200, 2000, 3500];
     const oscillators: OscillatorNode[] = [];
     const gainNodes: GainNode[] = [];
@@ -106,11 +112,9 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
-      // Use different wave types for variety
       oscillator.type = index % 2 === 0 ? "sine" : "triangle";
       oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
 
-      // Set initial gain (very low to simulate quiet speech)
       gainNode.gain.setValueAtTime(0.01, audioContext.currentTime);
 
       oscillator.connect(gainNode);
@@ -124,28 +128,23 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
     oscillatorsRef.current = oscillators;
     gainNodesRef.current = gainNodes;
 
-    // Animate the gain to simulate speech patterns
-    const animateGain = () => {
+    // Listen synchronously to exact RMS audio levels streaming from the rust backend
+    const unlisten = await listen<number>("audio-volume", (event) => {
       if (!isRecording || !audioContextRef.current) return;
-
+      const rms = event.payload; // Typically between 0.0 and 1.0
+      
       gainNodes.forEach((gainNode, index) => {
-        // Create random fluctuations to simulate speech
-        const baseGain = 0.02 + Math.random() * 0.08;
-        const speechPattern =
-          Math.sin(Date.now() / (200 + index * 50)) * 0.5 + 0.5;
-        const randomBurst = Math.random() > 0.7 ? Math.random() * 0.1 : 0;
-        const targetGain = baseGain * speechPattern + randomBurst;
+        // Create highly reactive fluctuations strictly tied to absolute audio level
+        const baseGain = (rms * 15.0) + 0.01;
+        // Minor natural spread jitter to prevent flat equalizer blocks at higher frequencies
+        const jitter = index > 3 ? (Math.random() * rms * 5.0) : 0;
+        const targetGain = Math.min(baseGain + jitter, 1.0);
 
-        gainNode.gain.linearRampToValueAtTime(
-          targetGain,
-          audioContextRef.current!.currentTime + 0.05
-        );
+        gainNode.gain.setTargetAtTime(targetGain, audioContextRef.current!.currentTime, 0.03);
       });
+    });
 
-      setTimeout(animateGain, 100);
-    };
-
-    animateGain();
+    unlistenVolumeRef.current = unlisten;
   };
 
   // Initialize audio context and start visualization
@@ -164,8 +163,8 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
         const source = audioContext.createMediaStreamSource(stream);
         source.connect(analyser);
       } else {
-        // Create fake stream for visualization
-        createFakeStream(audioContext, analyser);
+        // Tie into Tauri real-time audio volume events
+        await createReactiveStream(audioContext, analyser);
       }
 
       draw();

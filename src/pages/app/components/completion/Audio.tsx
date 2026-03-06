@@ -1,8 +1,10 @@
-import { InfoIcon, MicIcon } from "lucide-react";
+import { MicIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger, Button } from "@/components";
 import { AutoSpeechVAD } from "./AutoSpeechVad";
 import { UseCompletionReturn } from "@/types";
 import { useApp } from "@/contexts";
+import { cn } from "@/lib/utils";
+import { InfoIcon } from "lucide-react";
 
 export const Audio = ({
   micOpen,
@@ -34,7 +36,7 @@ export const Audio = ({
             onClick={() => {
               setEnableVAD(!enableVAD);
             }}
-            className="cursor-pointer"
+            className={cn("cursor-pointer relative")}
             title="Toggle voice input"
           >
             <MicIcon className="h-4 w-4" />

@@ -96,7 +96,7 @@ export async function fetchSTT(params: STTParams): Promise<string> {
         error?: string;
       }>("transcribe_local_whisper", { audioBase64, modelId });
 
-      if (response.success && response.transcription) {
+      if (response.success && response.transcription !== undefined) {
         return response.transcription;
       }
       throw new Error(
@@ -281,7 +281,8 @@ export async function fetchSTT(params: STTParams): Promise<string> {
     const transcription = (getByPath(data, path) || "").trim();
 
     if (!transcription) {
-      return [...warnings, "No transcription found"].join("; ");
+      if (warnings.length > 0) return warnings.join("; ");
+      return "";
     }
 
     // Return transcription with any warnings

@@ -11,7 +11,7 @@ const Dashboard = () => {
   // Group conversations by date
   const groupedConversations = conversations.conversations.reduce(
     (acc, doc) => {
-      const dateKey = moment(doc.updatedAt).format("YYYY-MM-DD");
+      const dateKey = moment(doc.updatedAt || Date.now()).format("YYYY-MM-DD");
       if (!acc[dateKey]) {
         acc[dateKey] = [];
       }
@@ -56,7 +56,7 @@ const Dashboard = () => {
                 conversations?.search?.length === 0
                   ? true
                   : groupedConversations?.[dateKey]?.some((doc) =>
-                      doc?.title
+                      (doc?.title || "")
                         .toLowerCase()
                         .includes(conversations?.search?.toLowerCase() || "")
                     )
@@ -75,14 +75,14 @@ const Dashboard = () => {
                       >
                         <div className="flex items-center justify-between">
                           <p className="line-clamp-1 text-sm mr-8">
-                            {doc.title}
+                            {doc.title || "Untitled conversation"}
                           </p>
                           <div className="flex items-center gap-1">
                             <Badge variant="outline" className="text-xs">
-                              {doc.messages.length} messages
+                              {doc.messages?.length ?? 0} messages
                             </Badge>
                             <Badge variant="outline" className="text-xs">
-                              {moment(doc.updatedAt).format("hh:mm A")}
+                              {moment(doc.updatedAt || Date.now()).format("hh:mm A")}
                             </Badge>
                           </div>
                         </div>

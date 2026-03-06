@@ -248,10 +248,15 @@ pub async fn transcribe_local_whisper(
     audio_base64: String,
     model_id: String,
 ) -> Result<LocalWhisperResponse, String> {
+    println!("[local_whisper] Received transcribe request for model: {}", model_id);
     // Resolve model path on the async side (cheap)
     let model_path = match model_path_for_id(&app, &model_id) {
-        Ok(p) => p,
+        Ok(p) => {
+            println!("[local_whisper] Model path resolved to: {}", p);
+            p
+        },
         Err(e) => {
+            println!("[local_whisper] Error resolving model path: {}", e);
             return Ok(LocalWhisperResponse {
                 success: false,
                 transcription: None,
@@ -261,9 +266,14 @@ pub async fn transcribe_local_whisper(
     };
 
     // Decode audio on the async side (I/O-bound, but fast)
+    println!("[local_whisper] Decoding audio (base64 len: {})...", audio_base64.len());
     let audio_samples = match decode_wav_to_f32_16k(&audio_base64) {
-        Ok(s) => s,
+        Ok(s) => {
+            println!("[local_whisper] Audio decoded successfully. {} samples.", s.len());
+            s
+        },
         Err(e) => {
+            println!("[local_whisper] Audio decode error: {}", e);
             return Ok(LocalWhisperResponse {
                 success: false,
                 transcription: None,
@@ -273,9 +283,22 @@ pub async fn transcribe_local_whisper(
     };
 
     // Whisper inference is CPU-intensive — run on blocking thread pool
+    println!("[local_whisper] Starting inference on blocking thread pool...");
     let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
-        get_or_load_context(model_path)?;
-        run_inference(audio_samples)
+        if let Err(e) = get_or_load_context(model_path) {
+            println!("[local_whisper] get_or_load_context error: {}", e);
+            return Err(e);
+        }
+        match run_inference(audio_samples) {
+            Ok(t) => {
+                println!("[local_whisper] inference success: {}", t);
+                Ok(t)
+            },
+            Err(e) => {
+                println!("[local_whisper] inference error: {}", e);
+                Err(e)
+            }
+        }
     })
     .await
     .map_err(|e| format!("Blocking task panicked: {}", e))?;

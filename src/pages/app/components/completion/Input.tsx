@@ -12,6 +12,8 @@ import {
 } from "@/components";
 import { UseCompletionReturn } from "@/types";
 import { MessageHistory } from "./MessageHistory";
+import { LiveTranscription } from "./LiveTranscription";
+
 
 export const Input = ({
   isPopoverOpen,
@@ -34,7 +36,20 @@ export const Input = ({
   isHidden,
   keepEngaged,
   setKeepEngaged,
-}: UseCompletionReturn & { isHidden: boolean }) => {
+  systemAudio,
+}: UseCompletionReturn & { isHidden: boolean; systemAudio: any }) => {
+  // Determine transcription source and state
+  const isSystemAudioActive = systemAudio?.capturing;
+  const systemTranscription = systemAudio?.lastTranscription || "";
+  const isSystemProcessing = systemAudio?.isProcessing;
+
+  // The live transcription source — headphone (system audio) takes priority when active
+  const liveSource: "headphone" | "mic" | null = isSystemAudioActive
+    ? "headphone"
+    : null;
+  const liveText = isSystemAudioActive ? systemTranscription : "";
+  const liveProcessing = isSystemAudioActive ? isSystemProcessing : false;
+
   return (
     <div className="relative flex-1">
       <Popover
@@ -49,7 +64,11 @@ export const Input = ({
           <div className="relative select-none">
             <InputComponent
               ref={inputRef}
-              placeholder="Ask me anything..."
+              placeholder={
+                isSystemAudioActive
+                  ? "Listening to system audio..."
+                  : "Ask me anything..."
+              }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -85,6 +104,13 @@ export const Input = ({
             )}
           </div>
         </PopoverTrigger>
+
+        {/* Live transcription bar — shows below input when transcription is active */}
+        <LiveTranscription
+          text={liveText}
+          source={liveSource}
+          isProcessing={!!liveProcessing}
+        />
 
         {/* Response Panel */}
         <PopoverContent

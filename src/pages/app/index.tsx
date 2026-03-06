@@ -58,7 +58,7 @@ const App = () => {
             ) : null}
 
             <div className="flex flex-1 flex-row gap-2 items-center min-w-0">
-              <Completion isHidden={isHidden} />
+              <Completion isHidden={isHidden} systemAudio={systemAudio} />
               <Button
                 size={"icon"}
                 className="cursor-pointer flex-shrink-0"
