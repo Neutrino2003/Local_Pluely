@@ -539,25 +539,28 @@ pub fn set_app_icon_visibility<R: Runtime>(app: AppHandle<R>, visible: bool) -> 
 
     #[cfg(target_os = "windows")]
     {
-        // On Windows, control taskbar icon visibility
-        if let Some(window) = app.get_webview_window("main") {
+        // On Windows the "main" window is already permanently hidden from the taskbar
+        // (skipTaskbar: true in tauri.conf.json). The "dashboard" window is the one
+        // that actually appears in the Windows taskbar, so we target that instead.
+        if let Some(window) = app.get_webview_window("dashboard") {
             window
                 .set_skip_taskbar(!visible)
                 .map_err(|e| format!("Failed to set taskbar visibility: {}", e))?;
         } else {
-            eprintln!("Main window not found on Windows");
+            // Dashboard window hasn't been created yet — nothing to do.
+            eprintln!("Dashboard window not found on Windows (may not be open yet)");
         }
     }
 
     #[cfg(target_os = "linux")]
     {
         // On Linux, control panel icon visibility
-        if let Some(window) = app.get_webview_window("main") {
+        if let Some(window) = app.get_webview_window("dashboard") {
             window
                 .set_skip_taskbar(!visible)
                 .map_err(|e| format!("Failed to set panel visibility: {}", e))?;
         } else {
-            eprintln!("Main window not found on Linux");
+            eprintln!("Dashboard window not found on Linux");
         }
     }
 
