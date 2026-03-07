@@ -10,8 +10,14 @@ const isAnyPopoverOpen = (): boolean => {
   return popoverContents.length > 0;
 };
 
+// Returns true when we're on the main overlay route (not the dashboard)
+const isOverlayWindow = (): boolean => window.location.pathname === "/";
+
 export const useWindowResize = () => {
   const resizeWindow = useCallback(async (expanded: boolean) => {
+    // Do not resize when running inside the dashboard window
+    if (!isOverlayWindow()) return;
+
     try {
       const window = getCurrentWebviewWindow();
 
@@ -32,6 +38,9 @@ export const useWindowResize = () => {
 
   // Setup drag handling and popover monitoring
   useEffect(() => {
+    // Don't attach any resize listeners when inside the dashboard window
+    if (!isOverlayWindow()) return;
+
     let isDragging = false;
 
     const handleMouseDown = (e: MouseEvent) => {
