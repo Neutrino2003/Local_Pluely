@@ -481,7 +481,7 @@ async fn handle_client_connection(
                 let mut image_base64 = None;
                 if let Some(window) = app.get_webview_window("main") {
                     if let Ok(base64_img) = crate::capture::capture_to_base64(window).await {
-                        image_base64 = Some(format!("data:image/png;base64,{}", base64_img));
+                        image_base64 = Some(base64_img);
                     }
                 }
                 

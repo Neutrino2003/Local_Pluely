@@ -53,6 +53,7 @@ pub fn run() {
         })
         .manage(shortcuts::RegisteredShortcuts::default())
         .manage(shortcuts::LicenseState::default())
+        .manage(shortcuts::AppIconVisibilityState::default())
         .manage(shortcuts::MoveWindowState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())

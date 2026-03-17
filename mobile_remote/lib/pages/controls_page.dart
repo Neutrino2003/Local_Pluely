@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../state/remote_state.dart';
 import 'chat_page.dart';
@@ -17,6 +21,74 @@ class ControlsPage extends StatefulWidget {
 class _ControlsPageState extends State<ControlsPage> {
   final _quickChatCtrl = TextEditingController();
   bool _sending = false;
+
+  Future<void> _shareScreenshot(String base64) async {
+    try {
+      final bytes = base64Decode(base64);
+      final tempDir = await getTemporaryDirectory();
+      final fileName =
+          'pluely_screenshot_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsBytes(bytes, flush: true);
+
+      final shareResult = await Share.shareXFiles(
+        <XFile>[XFile(file.path)],
+        text: 'Pluely screenshot',
+      );
+
+      if (!mounted) return;
+      if (shareResult.status == ShareResultStatus.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Screenshot shared successfully')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to export screenshot')),
+      );
+    }
+  }
+
+  Future<void> _copyScreenshotBase64(String base64) async {
+    await Clipboard.setData(ClipboardData(text: base64));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Screenshot base64 copied')),
+    );
+  }
+
+  Future<void> _saveScreenshotToGallery(String base64) async {
+    try {
+      final bytes = base64Decode(base64);
+      final fileName =
+          'pluely_screenshot_${DateTime.now().millisecondsSinceEpoch}';
+      final result = await ImageGallerySaverPlus.saveImage(
+        bytes,
+        quality: 100,
+        name: fileName,
+      );
+
+      final isSuccess =
+          (result['isSuccess'] == true) || (result['filePath'] != null);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isSuccess
+                ? 'Saved to gallery'
+                : 'Could not save to gallery on this device',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to save screenshot to gallery')),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -268,6 +340,30 @@ class _ControlsPageState extends State<ControlsPage> {
                   _SectionHeader('Last Screenshot', icon: Icons.image),
                   const SizedBox(height: 8),
                   _ScreenshotPreview(base64: rs.lastScreenshotBase64!),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: <Widget>[
+                      _ActionButton(
+                        icon: Icons.ios_share,
+                        label: 'Share / Save',
+                        onTap: () => _shareScreenshot(rs.lastScreenshotBase64!),
+                      ),
+                      _ActionButton(
+                        icon: Icons.download,
+                        label: 'Save to Gallery',
+                        onTap: () =>
+                            _saveScreenshotToGallery(rs.lastScreenshotBase64!),
+                      ),
+                      _ActionButton(
+                        icon: Icons.copy,
+                        label: 'Copy Base64',
+                        onTap: () =>
+                            _copyScreenshotBase64(rs.lastScreenshotBase64!),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                 ],
 

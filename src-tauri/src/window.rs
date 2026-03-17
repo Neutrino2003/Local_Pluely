@@ -5,6 +5,14 @@ use tauri::{App, AppHandle, Manager, Runtime, WebviewWindow, WebviewWindowBuilde
 // The offset from the top of the screen to the window
 const TOP_OFFSET: i32 = 54;
 
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+fn apply_dashboard_taskbar_visibility<R: Runtime>(app: &AppHandle<R>, window: &WebviewWindow<R>) {
+    let state = app.state::<crate::shortcuts::AppIconVisibilityState>();
+    if let Err(e) = window.set_skip_taskbar(!state.is_visible()) {
+        eprintln!("Failed to apply dashboard taskbar visibility: {}", e);
+    }
+}
+
 /// Sets up the main window with custom positioning
 pub fn setup_main_window(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     // Try different possible window labels
@@ -179,6 +187,9 @@ pub fn create_dashboard_window<R: Runtime>(
 
     let window = base_builder.build()?;
 
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    apply_dashboard_taskbar_visibility(app, &window);
+
     // Set up close event handler - hide window instead of destroying it
     setup_dashboard_close_handler(&window);
 
@@ -203,6 +214,9 @@ fn setup_dashboard_close_handler<R: Runtime>(window: &WebviewWindow<R>) {
 /// Shows the dashboard window and brings it to focus
 pub fn show_dashboard_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     if let Some(dashboard_window) = app.get_webview_window("dashboard") {
+        #[cfg(any(target_os = "windows", target_os = "linux"))]
+        apply_dashboard_taskbar_visibility(app, &dashboard_window);
+
         // Window exists, show and focus it
         dashboard_window
             .show()

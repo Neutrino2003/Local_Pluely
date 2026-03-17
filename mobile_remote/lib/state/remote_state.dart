@@ -139,7 +139,11 @@ class RemoteState extends ChangeNotifier {
 
     // Screenshot
     if ((res.imageBase64 ?? '').isNotEmpty) {
-      _lastScreenshotBase64 = res.imageBase64;
+      final value = res.imageBase64!;
+      final commaIndex = value.indexOf(',');
+      _lastScreenshotBase64 = value.startsWith('data:') && commaIndex != -1
+          ? value.substring(commaIndex + 1)
+          : value;
     }
 
     switch (res.command) {

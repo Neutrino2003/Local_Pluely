@@ -49,6 +49,8 @@
 	<string>Camera access is required to scan the desktop pairing QR code.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Local network access is required to connect to your desktop over Wi-Fi or hotspot.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Photo library access is required to save fetched screenshots to your gallery.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
