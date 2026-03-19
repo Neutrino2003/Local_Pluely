@@ -151,8 +151,6 @@ fn detect_local_hosts() -> Vec<String> {
         }
     }
 
-    // Always include loopback last so local testing is possible.
-    hosts.push("127.0.0.1".to_string());
     hosts.sort();
     hosts.dedup();
     hosts

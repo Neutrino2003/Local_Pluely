@@ -35,7 +35,7 @@ export const RemoteControl = () => {
   const activeWsUrl = useMemo(() => {
     if (!status?.wsUrls?.length) return "";
     const nonLocalhost = status.wsUrls.find(
-      (url) => !url.includes("127.0.0.1")
+      (url) => !url.includes("127.0.0.1") && !url.includes("localhost")
     );
     return nonLocalhost || status.wsUrls[0] || "";
   }, [status]);

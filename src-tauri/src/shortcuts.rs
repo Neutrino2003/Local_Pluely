@@ -34,22 +34,10 @@ pub struct LicenseState {
     has_active_license: AtomicBool,
 }
 
-pub struct AppIconVisibilityState {
-    is_visible: AtomicBool,
-}
-
 impl Default for LicenseState {
     fn default() -> Self {
         LicenseState {
             has_active_license: AtomicBool::new(false),
-        }
-    }
-}
-
-impl Default for AppIconVisibilityState {
-    fn default() -> Self {
-        AppIconVisibilityState {
-            is_visible: AtomicBool::new(true),
         }
     }
 }
@@ -61,16 +49,6 @@ impl LicenseState {
 
     pub fn set_active(&self, active: bool) {
         self.has_active_license.store(active, Ordering::Relaxed);
-    }
-}
-
-impl AppIconVisibilityState {
-    pub fn is_visible(&self) -> bool {
-        self.is_visible.load(Ordering::Relaxed)
-    }
-
-    pub fn set_visible(&self, visible: bool) {
-        self.is_visible.store(visible, Ordering::Relaxed);
     }
 }
 
@@ -544,11 +522,6 @@ pub fn set_license_status<R: Runtime>(app: AppHandle<R>, has_license: bool) -> R
 /// Tauri command to set app icon visibility in dock/taskbar
 #[tauri::command]
 pub fn set_app_icon_visibility<R: Runtime>(app: AppHandle<R>, visible: bool) -> Result<(), String> {
-    {
-        let state = app.state::<AppIconVisibilityState>();
-        state.set_visible(visible);
-    }
-
     #[cfg(target_os = "macos")]
     {
         // On macOS, use activation policy to control dock icon

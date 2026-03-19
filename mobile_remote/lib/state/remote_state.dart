@@ -38,10 +38,13 @@ class RemoteState extends ChangeNotifier {
   Timer? _syncTimer;
   Timer? _sessionsTimeoutTimer;
   Timer? _messagesTimeoutTimer;
+  Timer? _reconnectTimer;
   StreamSubscription<bool>? _connectionSub;
   StreamSubscription<String>? _statusSub;
   StreamSubscription<RemoteResponse>? _responsesSub;
   bool _isDisposed = false;
+  bool _manualDisconnectRequested = false;
+  int _reconnectAttempt = 0;
 
   // ── Connection ──────────────────────────────────────────────────────────────
   bool _connected = false;
@@ -106,13 +109,29 @@ class RemoteState extends ChangeNotifier {
       if (_isDisposed) return;
       // Only act on disconnections here; connection is handled in connect().
       if (!connected) {
+        // Ignore synthetic disconnect events that happen during connect()
+        // because RemoteSocketClient.connect() intentionally closes first.
+        if (_connecting) return;
+
         _connected = false;
         _overlayState = RemoteOverlayState.empty;
-        _statusMessage = 'Disconnected';
         _syncTimer?.cancel();
         _syncTimer = null;
         _sessionsTimeoutTimer?.cancel();
         _messagesTimeoutTimer?.cancel();
+
+        final canAutoReconnect =
+            !_manualDisconnectRequested &&
+            _token.trim().isNotEmpty &&
+            _urlsToTry().isNotEmpty;
+
+        if (canAutoReconnect) {
+          _scheduleReconnect();
+        } else {
+          _connecting = false;
+          _statusMessage = 'Disconnected';
+        }
+
         if (!_isDisposed) {
           notifyListeners();
         }
@@ -283,6 +302,10 @@ class RemoteState extends ChangeNotifier {
     final urls = _urlsToTry();
     if (urls.isEmpty || _token.isEmpty) return;
 
+    _manualDisconnectRequested = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+
     _connecting = true;
     _statusMessage = 'Connecting…';
     notifyListeners();
@@ -305,6 +328,7 @@ class RemoteState extends ChangeNotifier {
         _wsUrl = url;
         _connected = true;
         _connecting = false;
+        _reconnectAttempt = 0;
         _statusMessage = 'Connected';
         notifyListeners();
 
@@ -331,13 +355,45 @@ class RemoteState extends ChangeNotifier {
   }
 
   Future<void> disconnect() async {
+    _manualDisconnectRequested = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+
     _syncTimer?.cancel();
     _syncTimer = null;
     await _client.disconnect();
     _connected = false;
+    _connecting = false;
     _overlayState = RemoteOverlayState.empty;
     _statusMessage = 'Disconnected';
     notifyListeners();
+  }
+
+  void _scheduleReconnect() {
+    if (_reconnectTimer != null || _isDisposed || _manualDisconnectRequested) {
+      return;
+    }
+
+    _reconnectAttempt += 1;
+    final exponent = _reconnectAttempt > 4 ? 4 : _reconnectAttempt;
+    final delaySeconds = 1 << exponent; // 2, 4, 8, 16, 16...
+    _connecting = true;
+    _statusMessage = 'Connection lost. Reconnecting in ${delaySeconds}s…';
+    if (!_isDisposed) {
+      notifyListeners();
+    }
+
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () async {
+      _reconnectTimer = null;
+      if (_isDisposed || _manualDisconnectRequested || _connected) {
+        return;
+      }
+
+      await connect();
+      if (!_connected && !_isDisposed && !_manualDisconnectRequested) {
+        _scheduleReconnect();
+      }
+    });
   }
 
   void _startSync() {
@@ -496,6 +552,7 @@ class RemoteState extends ChangeNotifier {
     _syncTimer?.cancel();
     _sessionsTimeoutTimer?.cancel();
     _messagesTimeoutTimer?.cancel();
+    _reconnectTimer?.cancel();
     _connectionSub?.cancel();
     _statusSub?.cancel();
     _responsesSub?.cancel();
