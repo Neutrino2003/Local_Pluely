@@ -181,9 +181,6 @@ pub fn create_dashboard_window<R: Runtime>(
 
     let window = base_builder.build()?;
 
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
-    apply_dashboard_taskbar_visibility(app, &window);
-
     // Set up close event handler - hide window instead of destroying it
     setup_dashboard_close_handler(&window);
 
@@ -208,9 +205,6 @@ fn setup_dashboard_close_handler<R: Runtime>(window: &WebviewWindow<R>) {
 /// Shows the dashboard window and brings it to focus
 pub fn show_dashboard_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     if let Some(dashboard_window) = app.get_webview_window("dashboard") {
-        #[cfg(any(target_os = "windows", target_os = "linux"))]
-        apply_dashboard_taskbar_visibility(app, &dashboard_window);
-
         // Window exists, show and focus it
         dashboard_window
             .show()
