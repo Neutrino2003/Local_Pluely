@@ -5,13 +5,7 @@ use tauri::{App, AppHandle, Manager, Runtime, WebviewWindow, WebviewWindowBuilde
 // The offset from the top of the screen to the window
 const TOP_OFFSET: i32 = 54;
 
-#[cfg(any(target_os = "windows", target_os = "linux"))]
-fn apply_dashboard_taskbar_visibility<R: Runtime>(app: &AppHandle<R>, window: &WebviewWindow<R>) {
-    let state = app.state::<crate::shortcuts::AppIconVisibilityState>();
-    if let Err(e) = window.set_skip_taskbar(!state.is_visible()) {
-        eprintln!("Failed to apply dashboard taskbar visibility: {}", e);
-    }
-}
+
 
 /// Sets up the main window with custom positioning
 pub fn setup_main_window(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
