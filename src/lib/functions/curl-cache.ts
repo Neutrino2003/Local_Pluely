@@ -16,6 +16,64 @@ export interface ParsedCurl {
 /** In-memory cache: providerId → ParsedCurl */
 const cache = new Map<string, ParsedCurl>();
 
+function tryParseJsonPayload(value: string): any | null {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const candidates: string[] = [trimmed];
+
+    if (
+        (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+        (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    ) {
+        candidates.push(trimmed.slice(1, -1));
+    }
+
+    // Some Windows curl forms produce escaped JSON like {\"model\":\"...\"}
+    candidates.push(trimmed.replace(/\\"/g, '"'));
+
+    for (const candidate of candidates) {
+        try {
+            const parsed = JSON.parse(candidate);
+            if (typeof parsed === "string") {
+                try {
+                    return JSON.parse(parsed);
+                } catch {
+                    return parsed;
+                }
+            }
+            return parsed;
+        } catch {
+            // Try next candidate
+        }
+    }
+
+    return null;
+}
+
+function normalizeCurlData(data: any): any {
+    if (typeof data === "string") {
+        return tryParseJsonPayload(data) ?? data;
+    }
+
+    // @bany/curl-to-json may parse escaped JSON into an object like:
+    // { '{\\"model\\":...}': undefined }
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+        const entries = Object.entries(data);
+        if (entries.length === 1) {
+            const [maybeJson, value] = entries[0];
+            if (value === undefined || value === null) {
+                const recovered = tryParseJsonPayload(maybeJson);
+                if (recovered !== null) {
+                    return recovered;
+                }
+            }
+        }
+    }
+
+    return data;
+}
+
 /**
  * Parse a cURL template string into a structured object.
  * Results are cached by providerId so the expensive parse only runs once
@@ -44,7 +102,7 @@ export function getParsedCurl(providerId: string, curl: string): ParsedCurl {
         url: raw.url ?? "",
         method: (raw.method ?? "POST").toUpperCase(),
         headers: raw.header ?? {},
-        data: raw.data ?? null,
+        data: normalizeCurlData(raw.data ?? null),
         form: raw.form ?? null,
         params: raw.params ?? {},
         isFormUpload: curl.includes("-F ") || curl.includes("--form"),
